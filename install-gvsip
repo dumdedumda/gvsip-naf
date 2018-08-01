@@ -53,7 +53,9 @@ clear
 cd /root/gvsip-naf
 
 TEST=`grep transport_tls /etc/asterisk/pjsip_custom.conf | head -n 1`
-TEST=
+if [[ $1 == "--force" ]]; then 
+  TEST=
+fi
 if [[ -z $TEST ]]; then
  echo "This appears to be a fresh install of GVSIP for Incredible PBX."
  echo -n "Do you wish to install all of the required components? (y/n) "
@@ -245,7 +247,7 @@ fi
 
 echo "--> make menuselect"
 #make menuselect
-expect -c 'set timeout 10;spawn make menuselect;expect "Save";send "\t\t\r";interact'
+expect -c 'set timeout 15;spawn make menuselect;expect Save;send "\t\t\r";interact'
 make menuselect.makeopts
 menuselect/menuselect --enable-category  MENUSELECT_ADDONS menuselect.makeopts
 
