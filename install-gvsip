@@ -1,0 +1,517 @@
+#!/bin/bash
+
+# install-gvsip.sh, Copyright (c) 2018, Ward Mundy & Associates, LLC.
+# licensed for use pursuant to GPL2. See /root/COPYING for details.
+
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#    GPL2 license file can be found at /root/COPYING after installation.
+
+#version=`cat /etc/pbx/.version`
+version=13-13.7
+
+clear
+echo ".-.                          .-. _ .-.   .-.            .---. .---. .-..-."
+echo ": :                          : ::_;: :   : :  v$version  : .; :: .; :: \`' :"
+echo ": :,-.,-. .--. .--.  .--.  .-' :.-.: \`-. : :   .--.     :  _.':   .' \`  ' "
+#echo $version
+echo ": :: ,. :'  ..': ..'' '_.'' .; :: :' .; :: :_ ' '_.'    : :   : .; :.'  \`."
+echo ":_;:_;:_;\`.__.':_;  \`.__.'\`.__.':_;\`.__.'\`.__;\`.__.'    :_;   :___.':_;:_;"
+echo "Copyright (c) 2005-2018, Ward Mundy & Associates LLC. All rights reserved."
+echo " "
+echo "NOTE: Installs Asterisk 13.22.0 and GVSIP trunks for Google Voice."
+echo " "
+echo "BY USING INCREDIBLE PBX COMPONENTS, YOU AGREE TO ASSUME ALL RESPONSIBILITY"
+echo "FOR USE OF THE PROGRAMS INCLUDED IN THIS INSTALLATION. NO WARRANTIES"
+echo "EXPRESS OR IMPLIED INCLUDING MERCHANTABILITY AND FITNESS FOR PARTICULAR"
+echo "USE ARE PROVIDED. YOU ASSUME ALL RISKS KNOWN AND UNKNOWN AND AGREE TO"
+echo "HOLD WARD MUNDY, WARD MUNDY & ASSOCIATES LLC, NERD VITTLES, AND THE PBX"
+echo "IN A FLASH DEVELOPMENT TEAM HARMLESS FROM ANY AND ALL LOSS OR DAMAGE"
+echo "WHICH RESULTS FROM YOUR USE OF THIS SOFTWARE. AS CONFIGURED, THIS"
+echo "SOFTWARE CANNOT BE USED TO MAKE 911 CALLS, AND YOU AGREE TO PROVIDE"
+echo "AN ALTERNATE PHONE CAPABLE OF MAKING EMERGENCY CALLS. IF ANY OF THESE TERMS"
+echo "AND CONDITIONS ARE RULED TO BE UNENFORCEABLE, YOU AGREE TO ACCEPT ONE"
+echo "DOLLAR IN U.S. CURRENCY AS COMPENSATORY AND PUNITIVE LIQUIDATED DAMAGES"
+echo "FOR ANY AND ALL CLAIMS YOU AND ANY USERS OF THIS SOFTWARE MIGHT HAVE."
+echo " "
+
+echo "If you do not agree with these terms and conditions of use, press Ctrl-C now."
+read -p "Otherwise, press Enter to proceed at your own risk..."
+
+clear
+
+cd /root/gvsip-naf
+
+TEST=`grep transport_tls /etc/asterisk/pjsip_custom.conf | head -n 1`
+TEST=
+if [[ -z $TEST ]]; then
+ echo "This appears to be a fresh install of GVSIP for Incredible PBX."
+ echo -n "Do you wish to install all of the required components? (y/n) "
+ read PROCEED
+ if [ "$PROCEED" = "y" ]; then
+
+exec > >(tee -i /root/GVSIP-install-log.txt)
+exec 2>&1
+
+  TRUNK="1"
+  echo "Preparing for GVSIP initialization..."
+
+if [ ! -f /etc/redhat-release ]; then
+     centosflag=false
+else
+     centosflag=true
+fi
+
+TEST=`grep ID=raspbian /etc/os-release`
+if [[ -z $TEST ]]; then
+  raspbian=false
+else
+  raspbian=true
+fi
+
+if [ `getconf LONG_BIT` = "64" ]
+then
+  os_64=true
+  library_dir=lib64
+else
+  os_64=false
+  library_dir=lib
+fi
+
+set -e
+
+### set up OpenSSL
+if [ "$centosflag" = true ]; then
+ cd /root/gvsip-naf
+ cp openssl-1.1.0h.tar.gz /usr/src/.
+ cp asterisk-13.22.0.tar.gz /usr/src/.
+ cp naf419.patch /usr/src/.
+ cp COPYING /root/COPYING
+ cp gvsip_incoming.txt /tmp/.
+
+ cd /usr/src
+
+ SSLVER=`openssl version | cut -f 1 -d "-" | cut -f 2 -d " "`
+
+ if [[ "$SSLVER" < "1.1" ]];then
+  echo "Updating OpenSSL..."
+  #wget https://www.openssl.org/source/openssl-1.1.0h.tar.gz
+  tar zxvf openssl-1.1.0h.tar.gz
+  mv openssl-1.1.0h.tar.gz /tmp
+  find /usr/src/openssl-1.1.0h -exec touch -d "1 minute ago" {} +
+  cd openssl-1.1.0h
+  ./config
+  make
+  make install
+  mv /usr/$library_dir/libssl.so /tmp
+  ln -s /usr/local/$library_dir/libssl.so.1.1 /usr/$library_dir/libssl.so
+  ln -s /usr/local/$library_dir/libssl.so.1.1 /usr/$library_dir/libssl.so.1.1
+  mv /usr/$library_dir/libcrypto.so /tmp
+  ln -s /usr/local/$library_dir/libcrypto.so.1.1 /usr/$library_dir/libcrypto.so
+  ln -s /usr/local/$library_dir/libcrypto.so.1.1 /usr/$library_dir/libcrypto.so.1.1
+  mv /usr/bin/openssl /usr/bin/openssl_orig
+  ln -s /usr/local/bin/openssl /usr/bin/openssl
+ fi
+else
+ cp openssl* /usr/src/.
+ rm -f /usr/src/openssl-1.1.0h.tar.gz
+ cp libssl* /usr/src/.
+ cp naf419.patch /usr/src/.
+ cp asterisk-13.22.0.tar.gz /usr/src/.
+ cp COPYING /root/COPYING
+ cp gvsip_incoming.txt /tmp/.
+#cp -p gvsip-register /root/.
+
+ cd /usr/src
+
+ SSLVER=`openssl version | cut -f 1 -d "-" | cut -f 2 -d " "`
+ if [[ "$SSLVER" < "1.1" ]];then
+  if [ "$raspbian" = true ]; then
+  echo "Updating OpenSSL..."
+  dpkg -i libssl1.1_1.1.0h-4_armhf.deb
+  dpkg -i openssl_1.1.0h-4_armhf.deb
+  dpkg -i libssl-dev_1.1.0h-4_armhf.deb
+  ln -s /usr/lib/arm-linux-gnueabihf/libssl.so.1.1 /usr/lib/libssl.so
+  ln -s /usr/lib/arm-linux-gnueabihf/libssl.so.1.1 /usr/lib/libssl.so.1.1
+  ln -s /usr/lib/arm-linux-gnueabihf/libcrypto.so.1.1 /usr/lib/libcrypto.so
+  ln -s /usr/lib/arm-linux-gnueabihf/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
+  else
+  apt-get update
+  apt-get install libcurl4-openssl-dev -y
+  apt-get remove openssl libssl-dev -y
+  wget https://www.openssl.org/source/old/1.1.0/openssl-1.1.0g.tar.gz
+  tar zxvf openssl-1.1.0g.tar.gz
+  cd openssl-1.1.0g
+  ./config --prefix=/usr
+  make
+  make install
+  apt-get install ca-certificates -y
+  update-ca-certificates
+  fi
+ fi
+fi
+
+### set up Asterisk 13.22.0 with NAF's GVSIP patches
+set +e
+amportal stop
+set -e
+echo " "
+echo "Ready to rebuild Asterisk. Be sure you have a backup."
+echo "For any prompts during the patching process,"
+echo "simply press the ENTER key to continue."
+read -p "Press ENTER key now to begin the Asterisk upgrade..."
+
+COLUMNSIZE=`echo -e "cols"|tput -S`
+LINESIZE=`echo -e "lines"|tput -S`
+if [[ "$COLUMNSIZE" -lt "82"  ]] || [[ "$LINESIZE" -lt "30"  ]]; then
+ echo " "
+ echo "****** WARNING WARNING WARNING WARNING ******"
+ echo "Window size is too small: $COLUMNSIZE x $LINESIZE"
+ echo Resize console window to at least 82 x 30.
+ echo Do it NOW before continuing with the install.
+ echo "Otherwise, Asterisk may fail to build."
+ echo "****** WARNING WARNING WARNING WARNING ******"
+ echo " "
+read -p "Press Enter to proceed at your own risk..."
+fi
+
+cd /usr/src
+echo " "
+echo "Updating Asterisk with NAF gvsip patches for PJSIP..." 
+rm -rf asterisk-13.22.0
+rm -rf /usr/lib/asterisk/*
+rm -rf /usr/$library_path/asterisk/*
+#wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-13.22.0.tar.gz
+tar zxvf asterisk-13.22.0.tar.gz
+mv asterisk-13.22.0.tar.gz /tmp
+
+find /usr/src/asterisk-13.22.0 -exec touch -d "1 minute ago" {} +
+cd asterisk-13.22.0
+contrib/scripts/get_mp3_source.sh
+make distclean
+#wget http://incrediblepbx.com/menuselect-incredible13.8.tar.gz
+if [ "$centosflag" = true ]; then
+ tar zxvf /root/gvsip-naf/menuselect-incredible13.8.tar.gz
+ yum -y install expect
+else
+ tar zxvf /root/gvsip-naf/menuselect-incredible13.21.1.tar.gz
+ apt-get install expect -y
+fi
+#wget https://issues.asterisk.org/jira/secure/attachment/54233/srtp_aead_and_big_aes.patch
+cp /root/gvsip-naf/srtp_aead_and_big_aes.patch .
+#wget http://incrediblepbx.com/srtp_aead_and_big_aes.patch.patch
+cp /root/gvsip-naf/srtp_aead_and_big_aes.patch.patch .
+patch -p0 < ./srtp_aead_and_big_aes.patch.patch
+patch -p0 < ./srtp_aead_and_big_aes.patch
+
+set +e
+wget https://github.com/naf419/asterisk/compare/master...naf419:gvsip.patch
+patch -p1 < master...naf419:gvsip.patch
+
+# if patch ever comes unglued, you can use a local copy that still works
+#patch -p1 < ../naf419.patch
+
+find /usr/src/asterisk-13.22.0 -exec touch -d "1 minute ago" {} +
+
+if [ "$centosflag" = true ]; then
+ CFLAGS='-DENABLE_SRTP_AES_256 -DENABLE_SRTP_AES_GCM' ./configure --libdir=/usr/$library_dir --with-pjproject-bundled
+else
+ CFLAGS='-DENABLE_SRTP_AES_256 -DENABLE_SRTP_AES_GCM' ./configure --libdir=/usr/$library_dir --with-pjproject-bundled
+fi
+# make menuselect.makeopts
+# menuselect/menuselect --enable-category MENUSELECT_ADDONS menuselect.makeopts
+# menuselect/menuselect --enable-category MENUSELECT_CODECS menuselect.makeopts
+# menuselect/menuselect --disable-category MENUSELECT_TESTS menuselect.makeopts
+# menuselect/menuselect --enable CORE-SOUNDS-EN-GSM --enable MOH-OPSOUND-WAV --enable EXTRA-SOUNDS-EN-GSM --enable cdr_mysql menuselect.makeopts
+# menuselect/menuselect --disable app_mysql --disable app_setcallerid --disable func_audiohookinherit --disable res_fax_spandsp menuselect.makeopts
+# menuselect/menuselect --disable test_named_lock --disable test_res_pjsip_scheduler --disable test_file --disable test_bridging 
+#   --disable test_res_pjsip_scheduler  --disable res_config_sqlite menuselect.makeopts
+# if [ "$raspbian" = true ]; then
+#  menuselect/menuselect --disable codec_opus menuselect.makeopts
+# fi
+# sed -i 's|march=native|mtune=native|' Makefile.rules
+#expect -c 'set timeout 15;spawn make menuselect;expect Save;send "\t\t\r";interact'
+
+
+echo "--> make menuselect"
+#make menuselect
+expect -c 'set timeout 10;spawn make menuselect;expect "Save";send "\t\t\r";interact'
+make menuselect.makeopts
+menuselect/menuselect --enable-category  MENUSELECT_ADDONS menuselect.makeopts
+
+ menuselect/menuselect --enable-category MENUSELECT_CODECS menuselect.makeopts
+ menuselect/menuselect --disable-category MENUSELECT_TESTS menuselect.makeopts
+
+menuselect/menuselect --enable CORE-SOUNDS-EN-GSM --enable MOH-OPSOUND-WAV --enable EXTRA-SOUNDS-EN-GSM --enable cdr_mysql menuselect.makeopts
+menuselect/menuselect --disable app_mysql --disable app_setcallerid  --disable res_fax_spandsp --disable func_audiohookinherit menuselect.makeopts
+ menuselect/menuselect --disable test_named_lock --disable test_res_pjsip_scheduler --disable test_file --disable test_bridging
+ menuselect/menuselect --disable res_xmpp --disable res_config_sqlite menuselect.makeopts
+ if [ "$raspbian" = true ]; then
+  menuselect/menuselect --disable codec_opus menuselect.makeopts
+ fi
+ sed -i 's|march=native|mtune=native|' Makefile.rules
+
+make
+make install
+ldconfig
+
+if [ -e /etc/pbx/.incredible ]; then
+ if [ "$centosflag" = true ]; then
+  cd /usr/src/Asterisk-Flite-2.2-rc1-flite1.3
+ else
+  cd /usr/src/Asterisk-Flite
+ fi
+ make clean
+ make
+ make install
+fi
+
+cd /root/gvsip-naf
+
+# setup base platform for pjsip_custom.conf
+mv /etc/asterisk/pjsip_custom.conf /etc/asterisk/pjsip_custom_orig.conf
+echo "; pjsip_custom, Copyright (c) 2018, Ward Mundy & Associates, LLC." > /etc/asterisk/pjsip_custom.conf
+echo "; Licensed for use with NAF's Asterisk 13 PJSIP patches pursuant to GPL2." >> /etc/asterisk/pjsip_custom.conf
+echo "" >> /etc/asterisk/pjsip_custom.conf
+echo "[incoming-registrations-unused-but-required]" >> /etc/asterisk/pjsip_custom.conf
+echo "type=transport" >> /etc/asterisk/pjsip_custom.conf
+echo "protocol=udp" >> /etc/asterisk/pjsip_custom.conf
+echo "bind=0.0.0.0:5065" >> /etc/asterisk/pjsip_custom.conf	
+echo "" >> /etc/asterisk/pjsip_custom.conf
+echo "[global]" >> /etc/asterisk/pjsip_custom.conf
+echo "type=global" >> /etc/asterisk/pjsip_custom.conf
+echo "debug=true" >> /etc/asterisk/pjsip_custom.conf
+echo "keep_alive_interval=90" >> /etc/asterisk/pjsip_custom.conf
+echo "" >> /etc/asterisk/pjsip_custom.conf
+echo "[transport_tls]" >> /etc/asterisk/pjsip_custom.conf
+echo "type=transport" >> /etc/asterisk/pjsip_custom.conf
+echo "protocol=tls" >> /etc/asterisk/pjsip_custom.conf
+echo "bind=0.0.0.0:5061" >> /etc/asterisk/pjsip_custom.conf
+echo "" >> /etc/asterisk/pjsip_custom.conf
+
+chown asterisk:asterisk /etc/asterisk/pjsip_custom.conf
+
+# let's get rid of the +1 on GV incoming calls
+echo "" >> /etc/asterisk/extensions_custom.conf
+echo "[from-trunk-custom]" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,1,GotoIf(\$[\"\${CALLERID(num):0:1}\" != \"+\"]?noplusatstart)" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,n,GotoIf(\$[\"\${CALLERID(num):0:2}\" != \"+1\"]?noplusatstart)" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,n,NoOp(Changing Caller ID number from \${CALLERID(num)} to \${CALLERID(num):2})" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,n,Set(CALLERID(num)=\${CALLERID(num):2})" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,n,Set(CALLERID(ANI)=\${CALLERID(num)})" >> /etc/asterisk/extensions_custom.conf
+echo "exten => _X.,n(noplusatstart),Goto(from-trunk,\${EXTEN},1)" >> /etc/asterisk/extensions_custom.conf
+echo "" >> /etc/asterisk/extensions_custom.conf
+
+amportal start
+
+if [ -e /etc/pbx/.incredible ]; then
+### tweak FreePBX for debug support
+# set debug ON for PJsip module
+test=`grep debug /var/www/html/admin/modules/core/functions.inc/drivers/PJSip.class.php`
+ if [ -z "$test" ]; then
+  sed -i "s|'type=global',|'type=global',\n\t\t\t'debug=yes',|" /var/www/html/admin/modules/core/functions.inc/drivers/PJSip.class.php
+  amportal a r
+ fi
+fi
+
+### tweak FreePBX for GVSIP dial prefix support *41 to *49 for those that want to use them
+# modifying Echo Test (*43) and Queue Feature Codes (*45-*47) to Support GVSIP multi-trunk dial prefixes (*41-*49)
+DBUSER=`grep AMPDBUSER /etc/freepbx.conf | cut -f 4 -d "'"`
+DBPASS=`grep AMPDBPASS /etc/freepbx.conf | cut -f 4 -d "'"`
+mysql -u $DBUSER -p$DBPASS -e "update asterisk.featurecodes set defaultcode = '*23' where defaultcode = '*43' limit 1;"
+mysql -u $DBUSER -p$DBPASS -e "update asterisk.featurecodes set defaultcode = '*25' where defaultcode = '*45' limit 1;"
+mysql -u $DBUSER -p$DBPASS -e "update asterisk.featurecodes set defaultcode = '*26' where defaultcode = '*46' limit 1;"
+mysql -u $DBUSER -p$DBPASS -e "update asterisk.featurecodes set defaultcode = '*27' where defaultcode = '*47' limit 1;"
+amportal a r
+# feature codes are now *23 for Echo Test and *25, *26, and *27 for Queue Features
+
+echo $version > /etc/pbx/.version
+
+echo "GVSIP initialization is complete."
+echo " "
+
+ else
+  echo "Installation aborted."
+  exit
+ fi
+
+else
+ TRUNK="1"
+ while [ $TRUNK -lt 100 ]
+ do
+  TEST=`grep gvsip$TRUNK /etc/asterisk/pjsip_custom.conf | head -n 1`
+  if [[ ! -z $TEST ]]; then
+   TRUNK=$[$TRUNK+1]
+  else
+   break
+  fi 
+ done
+fi
+
+echo " "
+echo "You'll need a GV refresh_token and phone number to continue."
+echo "See http://nerdvittles.com/?p=26204#GVsetup for how to obtain one."
+echo -n "Do you wish to add GVSIP trunk #$TRUNK at this time? (y/n) "
+read PROCEED
+if [ "$PROCEED" = "y" ]; then
+ echo "Preparing to add GVSIP Trunk #$TRUNK..."
+
+echo " "
+REFRESH_TOKEN=""
+while [ -z $REFRESH_TOKEN ]
+do
+echo -n "Enter refresh_token for trunk #$TRUNK: "
+read REFRESH_TOKEN
+if [[ -z $REFRESH_TOKEN ]]; then
+ echo "Sorry. refresh_token is required."
+fi
+done
+echo " "
+echo "GV phone number is NOT  optional. It makes GVSIP registration unique."
+PHONE=""
+echo -n "Enter GV phone number (numbers only) here, e.g. 8005551212: "
+read PHONE
+
+echo " "
+echo "If you're using this Google Voice account elsewhere, you"
+echo "must shut it down now and uninstall it before proceeding."
+echo " "
+
+lowest=111337
+highest=982766
+REGIS=gv$TRUNK$[ ( $RANDOM % ( $[ $highest - $lowest ] + 1 ) ) + $lowest ]$PHONE
+
+
+echo "GVSIP #$TRUNK will be added now. Check these entries carefully:"
+echo " "
+echo "GV$TRUNK refresh_token: $REFRESH_TOKEN"
+echo "GV$TRUNK phone number : $PHONE"
+echo "GV$TRUNK unique ID    : $REGIS"
+
+echo " "
+
+echo "We're ready to add GVSIP trunk #$TRUNK. Press Ctrl-C now to abort."
+read -p "Otherwise, press Enter to proceed at your own risk..."
+
+echo " "
+echo "Adding GVSIP trunk #$TRUNK..."
+
+# generate template for GVSIP here
+trunkid=gvsip$TRUNK
+TRUNKID=$(echo $trunkid | tr a-z A-Z)
+
+echo ";# // BEGIN $TRUNKID" > /tmp/pjsip_custom.txt
+echo "[$trunkid]" >> /tmp/pjsip_custom.txt
+echo "type=registration" >> /tmp/pjsip_custom.txt
+echo "outbound_auth=$trunkid" >> /tmp/pjsip_custom.txt
+echo "server_uri=sip:obihai.sip.google.com" >> /tmp/pjsip_custom.txt
+echo "outbound_proxy=sip:obihai.telephony.goog:5061\;transport=tls\;lr\;hide" >> /tmp/pjsip_custom.txt
+echo "client_uri=sip:gvuser@obihai.sip.google.com" >> /tmp/pjsip_custom.txt
+echo "retry_interval=60" >> /tmp/pjsip_custom.txt
+echo "support_path=yes" >> /tmp/pjsip_custom.txt
+echo "support_outbound=yes" >> /tmp/pjsip_custom.txt
+echo "line=yes" >> /tmp/pjsip_custom.txt
+echo "endpoint=$trunkid" >> /tmp/pjsip_custom.txt
+echo ";contact_additional_params=obn=$trunkid" >> /tmp/pjsip_custom.txt
+echo "contact_user=did" >> /tmp/pjsip_custom.txt
+echo "transport=transport_tls" >> /tmp/pjsip_custom.txt
+echo "transport_reuse=no" >> /tmp/pjsip_custom.txt
+echo "" >> /tmp/pjsip_custom.txt
+echo "[$trunkid]" >> /tmp/pjsip_custom.txt
+echo "type=auth" >> /tmp/pjsip_custom.txt
+echo "auth_type=oauth" >> /tmp/pjsip_custom.txt
+echo "refresh_token=your-token-goes-here" >> /tmp/pjsip_custom.txt
+echo "; if you modify next two lines, you cannot use existing Incredible PBX refresh tokens" >> /tmp/pjsip_custom.txt
+echo "oauth_clientid=466295438629-prpknsovs0b8gjfcrs0sn04s9hgn8j3d.apps.googleusercontent.com" >> /tmp/pjsip_custom.txt
+echo "oauth_secret=4ewzJaCx275clcT4i4Hfxqo2" >> /tmp/pjsip_custom.txt
+echo "username=gvuser" >> /tmp/pjsip_custom.txt
+echo "realm=obihai.sip.google.com" >> /tmp/pjsip_custom.txt
+echo "" >> /tmp/pjsip_custom.txt
+echo "[$trunkid]" >> /tmp/pjsip_custom.txt
+echo "type=aor" >> /tmp/pjsip_custom.txt
+echo "contact=sip:obihai.sip.google.com" >> /tmp/pjsip_custom.txt
+echo ";qualify_frequency=120" >> /tmp/pjsip_custom.txt
+echo "" >> /tmp/pjsip_custom.txt
+echo "[$trunkid]" >> /tmp/pjsip_custom.txt
+echo "type=endpoint" >> /tmp/pjsip_custom.txt
+echo ";context=from-trunk-custom" >> /tmp/pjsip_custom.txt
+echo "context=from-pstn-e164-us" >> /tmp/pjsip_custom.txt
+echo "disallow=all" >> /tmp/pjsip_custom.txt
+echo "allow=ulaw" >> /tmp/pjsip_custom.txt
+if [ "$raspbian" = false ]; then
+ echo "allow=opus" >> /tmp/pjsip_custom.txt
+fi
+echo "outbound_auth=$trunkid" >> /tmp/pjsip_custom.txt
+echo "outbound_proxy=sip:obihai.telephony.goog:5061\;transport=tls\;lr\;hide" >> /tmp/pjsip_custom.txt
+echo "aors=$trunkid" >> /tmp/pjsip_custom.txt
+echo "direct_media=no" >> /tmp/pjsip_custom.txt
+echo "ice_support=yes" >> /tmp/pjsip_custom.txt
+echo "rtcp_mux=yes" >> /tmp/pjsip_custom.txt
+echo "media_use_received_transport=yes" >> /tmp/pjsip_custom.txt
+echo "outbound_registration=$trunkid" >> /tmp/pjsip_custom.txt
+echo "" >> /tmp/pjsip_custom.txt
+echo ";# // END $TRUNKID" >> /tmp/pjsip_custom.txt
+echo "" >> /tmp/pjsip_custom.txt
+# end template generation
+
+#cp pjsip_custom$TRUNK.txt /tmp/pjsip_custom.txt
+sed -i "s|your-token-goes-here|$REFRESH_TOKEN|" /tmp/pjsip_custom.txt
+sed -i "s|did|$PHONE|" /tmp/pjsip_custom.txt
+sed -i "s|username=gvuser|username=$REGIS|" /tmp/pjsip_custom.txt
+sed -i "s|sip:gvuser|sip:$REGIS|" /tmp/pjsip_custom.txt
+cat /tmp/pjsip_custom.txt >> /etc/asterisk/pjsip_custom.conf
+sed -i "s|\[from-external-custom\]|\[from-external-custom\]\nexten => $PHONE,1,Goto(s,1)|" /etc/asterisk/extensions_custom.conf
+
+# need logic for adding phone to pbxstatus for trunk 1
+if [ $TRUNK -eq 1 ]; then
+ echo "PH:$PHONE" > /etc/pbx/.phone
+fi
+
+# now let's create a FreePBX custom trunk to support the PJSIP/GVSIP trunk addition
+DBUSER=`grep AMPDBUSER /etc/freepbx.conf | cut -f 4 -d "'"`
+DBPASS=`grep AMPDBPASS /etc/freepbx.conf | cut -f 4 -d "'"`
+TRUNKTEST=$(mysql -u $DBUSER -p$DBPASS asterisk -s -N -e "select COUNT(channelid) from trunks where channelid=\"PJSIP/\$OUTNUM\$\@gvsip$TRUNK\"")
+if [ "$TRUNKTEST" = "0" ]; then
+ TRUNKID=`mysql -u $DBUSER -p$DBPASS asterisk -s -N -e "select t1.trunkid+1 as Missing from trunks as t1 left join trunks as t2 on t1.trunkid+1 = t2.trunkid where t2.trunkid is null limit 1"`
+ mysql -u $DBUSER -p$DBPASS asterisk -s -N -e "INSERT INTO \`trunks\` (\`trunkid\`, \`name\`, \`tech\`, \`outcid\`, \`keepcid\`, \`maxchans\`, \`failscript\`, \`dialoutprefix\`, \`channelid\`, \`usercontext\`, \`provider\`, \`disabled\`, \`continue\`) VALUES
+ (\"$TRUNKID\", \"GVSIP$TRUNK\", 'custom', '', 'off', '3', '', '', \"PJSIP/\$OUTNUM\$\@gvsip$TRUNK\", 'notneeded', '', 'off', 'off');"
+ sync
+ amportal a r
+ echo "GVSIP$TRUNK custom trunk for FreePBX created successfully."
+else
+ echo "GVSIP$TRUNK custom trunk for FreePBX already exists."
+fi
+
+echo " "
+
+#cat /tmp/pjsip_custom.txt
+
+echo "GVSIP trunk #$TRUNK added to pjsip_custom.conf successfully."
+echo "Restarting Asterisk..."
+amportal restart
+echo " "
+echo "NOTE: On Incredible PBX servers, INBOUND CALLS will be routed"
+echo "to the default route: Allison's Demo IVR. It is strongly"
+echo "recommended that you create a specific inbound route for your"
+echo "GVSIP DID $PHONE specifying desired destination for calls."
+echo " "
+echo "NOTE: You cannot make OUTBOUND CALLS with this new trunk until you"
+echo "first add a new Outbound Route for GVSIP$TRUNK trunk in the FreePBX GUI."
+echo " "
+echo "For complete HOW-TO instructions, read: http://nerdvittles.com/?p=26315"
+echo " "
+
+else
+ echo "Addition of GVSIP Trunk #$TRUNK ABORTED as requested."
+fi
+

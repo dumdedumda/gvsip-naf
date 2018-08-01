@@ -1,0 +1,77 @@
+#!/bin/bash
+
+echo "The following GVSIP accounts currently are registered:"
+
+grep username /etc/asterisk/pjsip_custom.conf | sed 's/./*/13' | sed 's/./*/14' | sed 's/./*/15' | sed 's/./*/16' | sed 's/./*/17' | sed 's/./*/18' | tr [gvsip] [GVSIP] | cut -c10- | sed 's|GV|GVSIP|'
+
+echo -n "Which account do you wish to delete (GVSIP1-GVSIP9)? "
+read TRUNK
+
+TRUNKACCT="1"
+while [ $TRUNKACCT -lt 10 ]
+ do
+  TEST=`grep gvsip$TRUNKACCT /etc/asterisk/pjsip_custom.conf | head -n 1`
+  if [[ ! -z $TEST ]]; then
+   TRUNKACCT=$[$TRUNKACCT+1]
+  else
+   break
+  fi
+ done
+TRUNKACCT=$[$TRUNKACCT-1]
+TRUNKTEST=GVSIP$TRUNKACCT
+
+if [[ ! "$TRUNK" > "$TRUNKTEST" ]]; then
+ echo " "
+else
+ echo " "
+ echo "Aborting. You don't have a $TRUNK account yet. Only these:"
+ grep username /etc/asterisk/pjsip_custom.conf | sed 's/./*/13' | sed 's/./*/14' | sed 's/./*/15' | sed 's/./*/16' | sed 's/./*/17' | sed 's/./*/18' | tr [gvsip] [GVSIP] | cut -c10- | sed 's|GV|GVSIP|'
+ exit 1
+fi
+
+
+# make a backup of /etc/asterisk/pjsip_custom.conf first
+
+case $TRUNK in
+ GVSIP1 )
+  echo Deleting GVSIP1...
+  sed -i '\:// BEGIN GVSIP1:,\:// END GVSIP1:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP2 )
+  echo Deleting GVSIP2...
+  sed -i '\:// BEGIN GVSIP2:,\:// END GVSIP2:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP3 )
+  echo Deleting GVSIP3...
+  sed -i '\:// BEGIN GVSIP3:,\:// END GVSIP3:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP4 )
+  echo Deleting GVSIP4...
+  sed -i '\:// BEGIN GVSIP4:,\:// END GVSIP4:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP5 )
+  echo Deleting GVSIP5...
+  sed -i '\:// BEGIN GVSIP5:,\:// END GVSIP5:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP6 )
+  echo Deleting GVSIP6...
+  sed -i '\:// BEGIN GVSIP6:,\:// END GVSIP6:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP7 )
+  echo Deleting GVSIP7...
+  sed -i '\:// BEGIN GVSIP7:,\:// END GVSIP7:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP8 )
+  echo Deleting GVSIP8...
+  sed -i '\:// BEGIN GVSIP8:,\:// END GVSIP8:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ GVSIP9 )
+  echo Deleting GVSIP9...
+  sed -i '\:// BEGIN GVSIP9:,\:// END GVSIP9:d' /etc/asterisk/pjsip_custom.conf
+  amportal restart ;;
+ * )
+  echo Delete ABORTED. Spell out GVSIP# and remember to use UPPER CASE. ;;
+esac
+
+
+# remember to clean out /etc/pbx/.phone if GVSIP1 is deleted

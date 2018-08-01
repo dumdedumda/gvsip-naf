@@ -1,0 +1,21 @@
+;# // BEGIN gvsip incoming
+[from-external-custom]
+exten => s,1,Answer
+exten => s,n,GotoIf($["${CALLERID(num):0:2}" != "+1"]?noplus)
+exten => s,n,Set(CALLERID(num)=${CALLERID(num):2})
+exten => s,n,GotoIf($["${CALLERID(name):0:2}" != "+1"]?noplus)
+exten => s,n,Set(CALLERID(name)=${CALLERID(name):2})
+exten => s,n(noplus),NoOp(Incoming GV call: ${CALLERID(all)})
+exten => s,n,AGI(/var/www/html/admin/modules/superfecta/agi/superfecta.agi)
+exten => s,n,Set(CALLERID(name)=${lookupcid})
+exten => s,n,GoSub(app-blacklist-check,s,1)
+; uncomment next line to call ext. 701
+;same => n,Dial(SIP/701,20,D(:1))
+; uncomment next line to call ring group 777
+;same => n,Dial(local/777@from-internal)
+; uncomment next line to call DEMO IVR
+same => n,Dial(local/3366@from-internal)
+; uncomment next line to call NV Weather ZIP custom app
+;same => n,Goto(from-internal-custom,947,1)
+;# // END gvsip incoming
+

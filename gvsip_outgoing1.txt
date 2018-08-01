@@ -1,0 +1,21 @@
+;# // BEGIN gvsip outgoing
+
+exten => _*48NXXNXXXXXX,1,Set(CALLERID(dnid)=${CALLERID(dnid):3})
+exten => _*48NXXNXXXXXX,n,Set(CALLERID(dnid)=1${CALLERID(dnid)})
+exten => _*48NXXNXXXXXX,n,Set(CHANNEL(accountcode)=Google Voice)
+exten => _*48NXXNXXXXXX,n,Dial(PJSIP/1${EXTEN:3}@gvsip1,,r)
+exten => _*481NXXNXXXXXX,1,Set(CALLERID(dnid)=${CALLERID(dnid):4})
+exten => _*481NXXNXXXXXX,n,Set(CALLERID(dnid)=1${CALLERID(dnid)})
+exten => _*481NXXNXXXXXX,n,Set(CHANNEL(accountcode)=Google Voice)
+exten => _*481NXXNXXXXXX,n,Dial(PJSIP/1${EXTEN:4}@gvsip1,,r)
+
+; To use no *48 dial prefix, comment out lines above and uncomment lines below
+;exten => _NXXNXXXXXX,1,Set(CALLERID(dnid)=${CALLERID(dnid)})
+;exten => _NXXNXXXXXX,n,Set(CALLERID(dnid)=1${CALLERID(dnid)})
+;exten => _NXXNXXXXXX,n,Set(CHANNEL(accountcode)=Google Voice)
+;exten => _NXXNXXXXXX,n,Dial(PJSIP/1${EXTEN}@gvsip1,,r)
+;exten => _1NXXNXXXXXX,1,Set(CHANNEL(accountcode)=Google Voice)
+;exten => _1NXXNXXXXXX,n,Dial(PJSIP/1${EXTEN:1}@gvsip1,,r)
+
+;# // END gvsip outgoing
+
