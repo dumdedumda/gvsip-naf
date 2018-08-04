@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # install-gvsip.sh, Copyright (c) 2018, Ward Mundy & Associates, LLC.
 # licensed for use pursuant to GPL2. See /root/COPYING for details.
@@ -19,6 +19,7 @@
 
 #version=`cat /etc/pbx/.version`
 version=13-13.7
+astversion=13.22.0
 
 clear
 echo ".-.                          .-. _ .-.   .-.            .---. .---. .-..-."
@@ -29,7 +30,7 @@ echo ": :: ,. :'  ..': ..'' '_.'' .; :: :' .; :: :_ ' '_.'    : :   : .; :.'  \`
 echo ":_;:_;:_;\`.__.':_;  \`.__.'\`.__.':_;\`.__.'\`.__;\`.__.'    :_;   :___.':_;:_;"
 echo "Copyright (c) 2005-2018, Ward Mundy & Associates LLC. All rights reserved."
 echo " "
-echo "NOTE: Installs Asterisk 13.22.0 and GVSIP trunks for Google Voice."
+echo "NOTE: Installs Asterisk $astversion and GVSIP trunks for Google Voice."
 echo " "
 echo "BY USING INCREDIBLE PBX COMPONENTS, YOU AGREE TO ASSUME ALL RESPONSIBILITY"
 echo "FOR USE OF THE PROGRAMS INCLUDED IN THIS INSTALLATION. NO WARRANTIES"
@@ -96,7 +97,7 @@ set -e
 if [ "$centosflag" = true ]; then
  cd /root/gvsip-naf
  cp openssl-1.1.0h.tar.gz /usr/src/.
- cp asterisk-13.22.0.tar.gz /usr/src/.
+ cp asterisk-$astversion.tar.gz /usr/src/.
  cp naf419.patch /usr/src/.
  cp COPYING /root/COPYING
  cp gvsip_incoming.txt /tmp/.
@@ -129,7 +130,7 @@ else
  rm -f /usr/src/openssl-1.1.0h.tar.gz
  cp libssl* /usr/src/.
  cp naf419.patch /usr/src/.
- cp asterisk-13.22.0.tar.gz /usr/src/.
+ cp asterisk-$astversion.tar.gz /usr/src/.
  cp COPYING /root/COPYING
  cp gvsip_incoming.txt /tmp/.
 #cp -p gvsip-register /root/.
@@ -163,7 +164,7 @@ else
  fi
 fi
 
-### set up Asterisk 13.22.0 with NAF's GVSIP patches
+### set up Asterisk $astversion with NAF's GVSIP patches
 set +e
 amportal stop
 set -e
@@ -190,15 +191,15 @@ fi
 cd /usr/src
 echo " "
 echo "Updating Asterisk with NAF gvsip patches for PJSIP..." 
-rm -rf asterisk-13.22.0
+rm -rf asterisk-$astversion
 rm -rf /usr/lib/asterisk/*
 rm -rf /usr/$library_path/asterisk/*
-#wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-13.22.0.tar.gz
-tar zxvf asterisk-13.22.0.tar.gz
-mv asterisk-13.22.0.tar.gz /tmp
+#wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-$astversion.tar.gz
+tar zxvf asterisk-$astversion.tar.gz
+mv asterisk-$astversion.tar.gz /tmp
 
-find /usr/src/asterisk-13.22.0 -exec touch -d "1 minute ago" {} +
-cd asterisk-13.22.0
+find /usr/src/asterisk-$astversion -exec touch -d "1 minute ago" {} +
+cd asterisk-$astversion
 contrib/scripts/get_mp3_source.sh
 make distclean
 #wget http://incrediblepbx.com/menuselect-incredible13.8.tar.gz
@@ -223,7 +224,7 @@ patch -p1 < master...naf419:gvsip.patch
 # if patch ever comes unglued, you can use a local copy that still works
 #patch -p1 < ../naf419.patch
 
-find /usr/src/asterisk-13.22.0 -exec touch -d "1 minute ago" {} +
+find /usr/src/asterisk-$astversion -exec touch -d "1 minute ago" {} +
 
 if [ "$centosflag" = true ]; then
  CFLAGS='-DENABLE_SRTP_AES_256 -DENABLE_SRTP_AES_GCM' ./configure --libdir=/usr/$library_dir --with-pjproject-bundled
